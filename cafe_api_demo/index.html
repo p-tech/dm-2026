@@ -1,0 +1,164 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Café Product Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 850px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f6f8;
+        }
+        .panel {
+            background: white;
+            padding: 24px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+        }
+        button {
+            cursor: pointer;
+        }
+        #message {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Café Product Manager</h1>
+<p>Live demonstration: HTML → API → SQLite</p>
+
+<div class="panel">
+    <h2>Products</h2>
+    <button onclick="loadProducts()">Refresh Products</button>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="productTable"></tbody>
+    </table>
+</div>
+
+<div class="panel">
+    <h2>Add New Product</h2>
+    <form id="productForm">
+        <input id="name" placeholder="Product name" required>
+        <input id="category" placeholder="Category" required>
+        <input id="price" type="number" step="0.01"
+               min="0" placeholder="Price" required>
+        <button type="submit">Add Product</button>
+    </form>
+    <p id="message" role="status"></p>
+</div>
+
+<script>
+const API = window.location.origin;
+
+async function loadProducts() {
+    try {
+        const response = await fetch(`${API}/products`);
+        if (!response.ok) throw new Error("Could not load products");
+
+        const products = await response.json();
+        const table = document.getElementById("productTable");
+        table.replaceChildren();
+
+        products.forEach(product => {
+            const row = document.createElement("tr");
+
+            [product.id, product.name, product.category,
+             `£${Number(product.price).toFixed(2)}`]
+                .forEach(value => {
+                    const cell = document.createElement("td");
+                    cell.textContent = value;
+                    row.appendChild(cell);
+                });
+
+            const actionCell = document.createElement("td");
+            const button = document.createElement("button");
+            button.textContent = "Delete";
+            button.addEventListener("click", () =>
+                deleteProduct(product.id)
+            );
+            actionCell.appendChild(button);
+            row.appendChild(actionCell);
+            table.appendChild(row);
+        });
+    } catch (error) {
+        document.getElementById("message").textContent = error.message;
+    }
+}
+
+document.getElementById("productForm")
+    .addEventListener("submit", async event => {
+        event.preventDefault();
+
+        const product = {
+            name: document.getElementById("name").value,
+            category: document.getElementById("category").value,
+            price: Number(document.getElementById("price").value)
+        };
+
+        try {
+            const response = await fetch(`${API}/products`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(product)
+            });
+
+            if (!response.ok) throw new Error("Could not add product");
+
+            document.getElementById("productForm").reset();
+            document.getElementById("message").textContent =
+                "Product added successfully";
+            await loadProducts();
+        } catch (error) {
+            document.getElementById("message").textContent = error.message;
+        }
+    });
+
+async function deleteProduct(id) {
+    if (!confirm("Delete this product?")) return;
+
+    try {
+        const response = await fetch(`${API}/products/${id}`, {
+            method: "DELETE"
+        });
+
+        if (!response.ok) throw new Error("Could not delete product");
+
+        document.getElementById("message").textContent =
+            "Product deleted";
+        await loadProducts();
+    } catch (error) {
+        document.getElementById("message").textContent = error.message;
+    }
+}
+
+loadProducts();
+</script>
+
+</body>
+</html>
